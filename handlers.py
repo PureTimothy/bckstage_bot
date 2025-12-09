@@ -1026,6 +1026,7 @@ def ensure_user_context(update_or_query) -> int:
     )
     if not db.get_user_language(mapped_id) and user.language_code in LANGUAGE_OPTIONS:
         db.set_user_language(mapped_id, user.language_code)
+    db.increment_stat(mapped_id, "commands_used")
     return mapped_id
 
 
@@ -2534,20 +2535,25 @@ async def resolve_blackjack_outcome(update_or_query, player_hand, dealer_hand, b
     payout = 0
     if player_total > 21:
         outcome_text = t(lang, "blackjack_bust", bet=bet)
+        db.increment_stat(user_id, "blackjack_losses")
     elif forced_dealer_bust or dealer_total > 21:
         payout = bet * 2
         db.adjust_balance(user_id, payout)
         outcome_text = t(lang, "blackjack_dealer_bust", payout=payout)
+        db.increment_stat(user_id, "blackjack_wins")
     elif player_total > dealer_total:
         payout = bet * 2
         db.adjust_balance(user_id, payout)
         outcome_text = t(lang, "blackjack_player_win", payout=payout, profit=payout - bet)
+        db.increment_stat(user_id, "blackjack_wins")
     elif dealer_total > player_total:
         outcome_text = t(lang, "blackjack_dealer_win", bet=bet)
+        db.increment_stat(user_id, "blackjack_losses")
     else:
         payout = bet
         db.adjust_balance(user_id, payout)
         outcome_text = t(lang, "blackjack_push")
+        db.increment_stat(user_id, "blackjack_pushes")
     message_lines.append(outcome_text)
     balance = db.get_balance(user_id)
     message_lines.append("")
@@ -3131,6 +3137,8 @@ async def shop_finalize(update_or_query, context: ContextTypes.DEFAULT_TYPE, use
             await _respond(update_or_query, t(lang, "shop_no_points", name=name, price=price, points=balance), reply_markup=game_menu_markup(lang, user_id))
             return ConversationHandler.END
         db.adjust_balance(user_id, -price)
+        db.increment_stat(user_id, "purchases")
+        db.increment_stat(user_id, "shop_spent", price)
 
     # persist contact
     if not skip_details:

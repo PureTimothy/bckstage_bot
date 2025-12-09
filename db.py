@@ -45,6 +45,14 @@ def init_db() -> None:
         cur.execute("ALTER TABLE user_profiles ADD COLUMN language TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN first_seen DATETIME")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN last_seen DATETIME")
+    except sqlite3.OperationalError:
+        pass
 
     cur.execute(
         """
@@ -664,6 +672,12 @@ STAT_COLUMNS = {
     "gifts_received": "gifts_received",
     "games_played": "games_played",
     "candidates_submitted": "candidates_submitted",
+    "blackjack_wins": "blackjack_wins",
+    "blackjack_losses": "blackjack_losses",
+    "blackjack_pushes": "blackjack_pushes",
+    "shop_spent": "shop_spent",
+    "commands_used": "commands_used",
+    "checkins": "checkins",
 }
 
 
@@ -671,6 +685,12 @@ def ensure_user_stats(user_id: int) -> None:
     conn = sqlite3.connect(config.DB_PATH)
     cur = conn.cursor()
     cur.execute("INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)", (user_id,))
+    # ensure new columns exist with defaults
+    for col in ["blackjack_wins", "blackjack_losses", "blackjack_pushes", "shop_spent", "commands_used", "checkins"]:
+        try:
+            cur.execute(f"ALTER TABLE user_stats ADD COLUMN {col} INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
     conn.commit()
     conn.close()
 
@@ -679,9 +699,9 @@ def increment_stat(user_id: int, field: str, delta: int = 1) -> None:
     column = STAT_COLUMNS.get(field)
     if not column or delta == 0:
         return
+    ensure_user_stats(user_id)
     conn = sqlite3.connect(config.DB_PATH)
     cur = conn.cursor()
-    cur.execute("INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)", (user_id,))
     cur.execute(
         f"UPDATE user_stats SET {column} = {column} + ? WHERE user_id = ?",
         (delta, user_id),
@@ -739,6 +759,7 @@ def get_last_checkin(user_id: int) -> Optional[str]:
 def record_checkin(user_id: int) -> int:
     today = date.today().isoformat()
     ensure_wallet(user_id)
+    ensure_user_stats(user_id)
     conn = sqlite3.connect(config.DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -748,6 +769,11 @@ def record_checkin(user_id: int) -> int:
     conn.commit()
     cur.execute("SELECT balance FROM user_wallets WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
+    try:
+        cur.execute("UPDATE user_stats SET checkins = checkins + 1 WHERE user_id = ?", (user_id,))
+    except Exception:
+        pass
+    conn.commit()
     conn.close()
     return row[0] if row else 0
 
@@ -1228,8 +1254,8 @@ def upsert_user_basic(
 
     cur.execute(
         """
-        INSERT INTO users (user_id, local_id, username, first_name, last_name, language_code)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO users (user_id, local_id, username, first_name, last_name, language_code, first_seen, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(user_id) DO UPDATE SET
             local_id = COALESCE(users.local_id, excluded.local_id),
             username = excluded.username,
