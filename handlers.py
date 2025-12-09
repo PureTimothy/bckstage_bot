@@ -3687,6 +3687,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if data == "game:earn":
             await send_earn_points(query, context)
             return
+        if data == "santa:start":
+            await santa_start(query, context)
+            return
+        if data == "santa:edit":
+            await santa_edit_start(query, context)
+            return
         if data == "earn:ref":
             lang = lang_for_user(user_id)
             if not db.is_feature_enabled("referral"):
