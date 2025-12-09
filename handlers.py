@@ -138,8 +138,24 @@ async def send_start_message(update_or_query, lang: str, user_id: int):
     await update_or_query.message.reply_text(text, reply_markup=keyboard)
 
 
+def clear_santa_state(context) -> None:
+    context.user_data.pop("santa_active", None)
+    context.user_data.pop("santa_name", None)
+    context.user_data.pop("santa_insta", None)
+    context.user_data.pop("santa_existing_number", None)
+
+
+def clear_transient_state(context) -> None:
+    if context is None:
+        return
+    # Clear any pending blackjack bet prompt or Santa flow flags
+    context.user_data.pop("bj_pending", None)
+    clear_santa_state(context)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = ensure_user_context(update)
+    clear_transient_state(context)
     # Referral tracking via /start ref<id>
     if context.args:
         arg = context.args[0]
@@ -181,6 +197,7 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = ensure_user_context(update)
+    clear_transient_state(context)
     lang = lang_for_user(user_id)
     if not lang:
         await send_language_prompt(update)
@@ -195,6 +212,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def submit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    clear_transient_state(context)
     user_id = ensure_user_context(update)
     lang = lang_for_user(user_id)
     mode = db.get_mode()
@@ -237,6 +255,7 @@ async def submit_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def submit_start_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    clear_transient_state(context)
     user_id = ensure_user_context(query)
     lang = lang_for_user(user_id)
     mode = db.get_mode()
@@ -943,6 +962,7 @@ async def fun_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db.is_feature_enabled("fun"):
         await _respond(update, t(lang_for_user(update.effective_user.id), "feature_disabled"))
         return
+    clear_transient_state(context)
     await send_game_menu(update)
 
 
@@ -1387,6 +1407,7 @@ async def myprofile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start_tinder_flow(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     user_id = ensure_user_context(update_or_query)
     lang = lang_for_user(user_id)
+    clear_transient_state(context)
     await _respond(update_or_query, t(lang, "tinder_age_prompt"))
     if context:
         context.user_data["tinder_media"] = []
@@ -2069,6 +2090,7 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    clear_transient_state(context)
     await show_shop(update)
 
 
@@ -2138,6 +2160,8 @@ async def santa_start(update_or_query, context: ContextTypes.DEFAULT_TYPE, *, ed
     if not db.is_feature_enabled("santa"):
         await _respond(update_or_query, t(lang, "santa_disabled"))
         return ConversationHandler.END
+    clear_transient_state(context)
+    context.user_data["santa_active"] = True
     context.user_data.pop("santa_name", None)
     context.user_data.pop("santa_insta", None)
     existing_number = db.get_santa_number_for_user(user_id)
@@ -2157,6 +2181,8 @@ async def santa_start(update_or_query, context: ContextTypes.DEFAULT_TYPE, *, ed
 async def santa_name_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = ensure_user_context(update)
     lang = lang_for_user(user_id)
+    if not context.user_data.get("santa_active"):
+        return ConversationHandler.END
     name = (update.message.text or "").strip()
     if not name:
         await update.message.reply_text(t(lang, "santa_name_prompt"))
@@ -2172,6 +2198,8 @@ async def santa_name_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def santa_insta_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = ensure_user_context(update)
     lang = lang_for_user(user_id)
+    if not context.user_data.get("santa_active"):
+        return ConversationHandler.END
     if not update.message or not update.message.photo:
         await update.message.reply_text(t(lang, "santa_gift_prompt"))
         return config.SANTA_GIFT
@@ -2197,16 +2225,14 @@ async def santa_insta_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_start_message(update, lang, user_id)
     except Exception:
         pass
-    context.user_data.pop("santa_name", None)
-    context.user_data.pop("santa_insta", None)
+    clear_santa_state(context)
     return ConversationHandler.END
 
 
 async def santa_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = lang_for_user(ensure_user_context(update))
     await update.message.reply_text(t(lang, "submission_cancel"), reply_markup=ReplyKeyboardRemove())
-    context.user_data.pop("santa_name", None)
-    context.user_data.pop("santa_insta", None)
+    clear_santa_state(context)
     return ConversationHandler.END
 
 
@@ -2330,6 +2356,7 @@ async def quick_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def send_earn_points(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     user_id = ensure_user_context(update_or_query)
     lang = lang_for_user(user_id)
+    clear_transient_state(context)
     if not db.is_feature_enabled("earn"):
         await _respond(update_or_query, t(lang, "feature_disabled"))
         return
@@ -2396,6 +2423,7 @@ def post_round_keyboard(lang: str) -> InlineKeyboardMarkup:
 async def start_blackjack(update_or_query, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = ensure_user_context(update_or_query)
     lang = lang_for_user(user_id)
+    clear_santa_state(context)
     if not db.is_feature_enabled("blackjack"):
         await _respond(update_or_query, t(lang, "feature_disabled"))
         return
