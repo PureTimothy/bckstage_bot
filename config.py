@@ -42,5 +42,7 @@ SHOP_KEEP_OR_GIFT, SHOP_RECIPIENT, SHOP_FILL_WHO, SHOP_FILL_CONTACT, SHOP_NAME, 
 # Referral rewards
 REFERRAL_BONUS = 50
 
+# Support (via /help button)
+SUPPORT_CANCEL = "support_cancel"
 # Secret Santa flow
 SANTA_NAME, SANTA_GIFT = range(40, 42)

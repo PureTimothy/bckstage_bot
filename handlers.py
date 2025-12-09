@@ -143,6 +143,7 @@ def clear_santa_state(context) -> None:
     context.user_data.pop("santa_name", None)
     context.user_data.pop("santa_insta", None)
     context.user_data.pop("santa_existing_number", None)
+    context.user_data.pop("support_waiting", None)
 
 
 def clear_transient_state(context) -> None:
@@ -181,7 +182,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = t(lang, "help_admin")
     else:
         text = t(lang, "help_user")
-    await update.message.reply_text(text)
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(t(lang, "support_button"), callback_data="support:start")]]
+    )
+    await update.message.reply_text(text, reply_markup=kb)
     if config.SUPPORT_USERNAME:
         btn = InlineKeyboardMarkup(
             [[InlineKeyboardButton(t(lang, "contact_admin_button"), url=f"https://t.me/{config.SUPPORT_USERNAME}")]]
@@ -964,6 +968,14 @@ async def fun_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     clear_transient_state(context)
     await send_game_menu(update)
+
+
+async def support_start(update_or_query, context: ContextTypes.DEFAULT_TYPE):
+    user_id = ensure_user_context(update_or_query)
+    lang = lang_for_user(user_id)
+    context.user_data["support_waiting"] = True
+    kb = ReplyKeyboardMarkup([[t(lang, "support_cancel")]], resize_keyboard=True, one_time_keyboard=True)
+    await _respond(update_or_query, t(lang, "support_prompt"), reply_markup=kb)
 
 
 async def _respond(update_or_query, text: str, reply_markup=None):
@@ -2340,6 +2352,27 @@ async def quick_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     lang = lang_for_user(user_id)
     text = (update.message.text or "").strip()
     if not text:
+        return
+    # Support reply handling
+    if context.user_data.get("support_waiting"):
+        if text == t(lang, "support_cancel"):
+            context.user_data.pop("support_waiting", None)
+            await update.message.reply_text(t(lang, "support_cancelled"), reply_markup=ReplyKeyboardRemove())
+            return
+        context.user_data.pop("support_waiting", None)
+        admin_msg = f"🆘 Support message from {user_id} (@{update.effective_user.username or '—'}):\n{text}"
+        try:
+            await context.bot.send_message(chat_id=config.ADMIN_ID, text=admin_msg)
+        except Exception:
+            pass
+        try:
+            # Also notify secondary admins
+            for aid in db.list_admin_users():
+                if aid != config.ADMIN_ID:
+                    await context.bot.send_message(chat_id=aid, text=admin_msg)
+        except Exception:
+            pass
+        await update.message.reply_text(t(lang, "support_sent"), reply_markup=ReplyKeyboardRemove())
         return
     if context.user_data.get("bj_pending"):
         if text.isdigit():
@@ -3984,6 +4017,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = lang_for_user(user_id)
             await query.message.reply_text(t(lang, "language_set"))
             await send_start_message(query, lang, user_id)
+            return
+        if data == "support:start":
+            await support_start(query, context)
             return
 
         # --- voting start ---
