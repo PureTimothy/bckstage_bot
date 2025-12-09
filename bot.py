@@ -3,6 +3,7 @@ import os
 
 from telegram.ext import ApplicationBuilder
 
+# Token is provided at runtime via BOT_TOKEN environment variable.
 import config
 import db
 from handlers import register_handlers, set_persistent_commands
