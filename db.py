@@ -14,7 +14,10 @@ CandidateRow = Tuple[int, str, int, str, Optional[str], str, int]
 def init_db() -> None:
     db_path = Path(config.DB_PATH)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path), timeout=5.0, isolation_level=None)
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=5.0, isolation_level=None)
+    except sqlite3.OperationalError as e:
+        raise RuntimeError(f"Cannot open SQLite DB at {db_path}: {e}. Ensure the path is writable and volume is mounted.") from e
     cur = conn.cursor()
     # Faster/more concurrent SQLite defaults
     try:
