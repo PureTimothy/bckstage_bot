@@ -1,6 +1,7 @@
 import json
 import sqlite3
 from datetime import date
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import config
@@ -11,7 +12,9 @@ CandidateRow = Tuple[int, str, int, str, Optional[str], str, int]
 
 
 def init_db() -> None:
-    conn = sqlite3.connect(config.DB_PATH, timeout=5.0, isolation_level=None)
+    db_path = Path(config.DB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path), timeout=5.0, isolation_level=None)
     cur = conn.cursor()
     # Faster/more concurrent SQLite defaults
     try:
