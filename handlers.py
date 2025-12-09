@@ -2601,6 +2601,12 @@ async def blackjack_hit(update_or_query) -> None:
         )
         await _respond(update_or_query, text, reply_markup=post_round_keyboard(lang))
         return
+    if total == 21:
+        # Auto-stand and resolve when player hits 21
+        dealer_hand = game.dealer_play(dealer_hand, deck)
+        db.clear_blackjack_session(user_id)
+        await resolve_blackjack_outcome(update_or_query, player_hand, dealer_hand, bet)
+        return
 
     await send_blackjack_state(
         update_or_query, player_hand, dealer_hand, bet, allow_double=False
@@ -2657,6 +2663,11 @@ async def blackjack_double(update_or_query) -> None:
             ]
         )
         await _respond(update_or_query, text, reply_markup=post_round_keyboard(lang))
+        return
+    if total == 21:
+        dealer_hand = game.dealer_play(dealer_hand, deck)
+        db.clear_blackjack_session(user_id)
+        await resolve_blackjack_outcome(update_or_query, player_hand, dealer_hand, bet)
         return
 
     dealer_hand = game.dealer_play(dealer_hand, deck)
