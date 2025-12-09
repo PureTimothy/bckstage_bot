@@ -19,11 +19,17 @@ def main() -> None:
     db.init_db()
     repair_tinder_profiles()
 
+    logger.info("Using database at %s", config.DB_PATH)
     token = os.environ.get("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN environment variable is not set.")
 
-    builder = ApplicationBuilder().token(token).post_init(set_persistent_commands)
+    builder = (
+        ApplicationBuilder()
+        .token(token)
+        .post_init(set_persistent_commands)
+        .updater(None)  # avoid legacy Updater creation issues on some runtimes
+    )
     if config.API_BASE_URL:
         builder = builder.base_url(config.API_BASE_URL)
     application = builder.build()
