@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 
-DB_PATH = Path("ballet_bot.db")
+# Allow overriding DB location via environment (use a persistent volume path in production)
+DB_PATH = Path(os.environ.get("DB_PATH", "ballet_bot.db"))
 TELEGRAM_PROMO_URL = "https://t.me/+DHe6FlkUmeAwZWJi"
 ADMIN_ID = 276784395
 ADMIN_GUEST_MODE = False
