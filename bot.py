@@ -28,7 +28,6 @@ def main() -> None:
         ApplicationBuilder()
         .token(token)
         .post_init(set_persistent_commands)
-        .updater(None)  # avoid legacy Updater creation issues on some runtimes
     )
     if config.API_BASE_URL:
         builder = builder.base_url(config.API_BASE_URL)
