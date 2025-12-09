@@ -2289,9 +2289,13 @@ async def send_santa_card(update_or_query, gift_number: int, lang: str):
         else update_or_query.from_user.id
     )
     if gift_photo_id and bot:
-        await bot.send_photo(chat_id=chat_id, photo=gift_photo_id, caption=caption, reply_markup=kb)
-    else:
-        await _respond(update_or_query, caption, reply_markup=kb)
+        try:
+            await bot.send_photo(chat_id=chat_id, photo=gift_photo_id, caption=caption, reply_markup=kb)
+            return
+        except Exception:
+            # Fall back to text if the stored file_id is invalid
+            caption = caption + f"\n\n{t(lang, 'photo_unavailable')}"
+    await _respond(update_or_query, caption, reply_markup=kb)
 
 
 async def feature_toggle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
