@@ -3283,6 +3283,17 @@ async def admin_purchase_done(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.message.reply_text(t(lang, "shop_admin_done", pid=pid))
 
 
+async def blackjack_stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = ensure_user_context(update)
+    if not is_admin(user_id):
+        return
+    lang = lang_for_user(user_id)
+    wins, losses, pushes = db.get_blackjack_totals()
+    total = wins + losses
+    ratio = (wins / total * 100) if total else 0.0
+    await update.message.reply_text(t(lang, "bj_stats", wins=wins, losses=losses, pushes=pushes, ratio=ratio))
+
+
 
 async def buy_item(update_or_query, item_id: int) -> None:
     # Deprecated: replaced by new shop flow
@@ -4300,6 +4311,7 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("reset_shows_all", reset_shows_all_cmd))
     application.add_handler(CommandHandler("wipe_profiles", wipe_profiles_cmd))
     application.add_handler(CommandHandler("lookup", santa_lookup_cmd))
+    application.add_handler(CommandHandler("bjstats", blackjack_stats_cmd))
     application.add_handler(CommandHandler("profile", myprofile_command))
     application.add_handler(CommandHandler("list_users", list_users_cmd))
     application.add_handler(CommandHandler("user", user_info_cmd))

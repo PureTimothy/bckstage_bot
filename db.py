@@ -710,6 +710,18 @@ def increment_stat(user_id: int, field: str, delta: int = 1) -> None:
     conn.close()
 
 
+def get_blackjack_totals() -> Tuple[int, int, int]:
+    """Return total wins, losses, pushes across all users."""
+    conn = sqlite3.connect(config.DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COALESCE(SUM(blackjack_wins),0), COALESCE(SUM(blackjack_losses),0), COALESCE(SUM(blackjack_pushes),0) FROM user_stats"
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row if row else (0, 0, 0)
+
+
 def ensure_wallet(user_id: int) -> None:
     conn = sqlite3.connect(config.DB_PATH)
     cur = conn.cursor()
