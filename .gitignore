@@ -1,0 +1,8 @@
+# Ignore local environment and caches
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Ignore local database and backups
+ballet_bot.db*
