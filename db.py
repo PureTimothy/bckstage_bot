@@ -20,6 +20,7 @@ def init_db() -> None:
         raise RuntimeError(f"Cannot open SQLite DB at {db_path}: {e}. Ensure the path is writable and volume is mounted.") from e
     cur = conn.cursor()
     # Faster/more concurrent SQLite defaults
+    # SQLite pragmas (safe to ignore if unsupported)
     try:
         cur.execute("PRAGMA journal_mode=WAL;")
         cur.execute("PRAGMA synchronous=NORMAL;")
