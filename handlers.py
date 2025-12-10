@@ -2217,6 +2217,10 @@ async def santa_insta_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = lang_for_user(user_id)
     if not context.user_data.get("santa_active"):
         return ConversationHandler.END
+    # Require a real photo (not a file/document)
+    if update.message and update.message.document and not update.message.photo:
+        await update.message.reply_text(t(lang, "santa_not_photo"))
+        return config.SANTA_GIFT
     if not update.message or not update.message.photo:
         await update.message.reply_text(t(lang, "santa_gift_prompt"))
         return config.SANTA_GIFT
