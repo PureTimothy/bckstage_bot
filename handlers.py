@@ -2178,8 +2178,12 @@ async def santa_start(update_or_query, context: ContextTypes.DEFAULT_TYPE, *, ed
     context.user_data.pop("santa_name", None)
     context.user_data.pop("santa_insta", None)
     existing_number = db.get_santa_number_for_user(user_id)
+    # assign a number immediately so partial submissions are visible
+    if not existing_number:
+        existing_number = db.assign_secret_santa_number(user_id)
     details = db.get_santa_details_for_user(user_id)
-    has_details = details and details[1] and details[2]
+    saved_name = details[1] if details else None
+    has_details = bool(saved_name)
     if existing_number and has_details and not edit_mode:
         kb = InlineKeyboardMarkup(
             [[InlineKeyboardButton(t(lang, "santa_edit_button"), callback_data="santa:edit")]]
@@ -2216,8 +2220,7 @@ async def santa_insta_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.photo:
         await update.message.reply_text(t(lang, "santa_gift_prompt"))
         return config.SANTA_GIFT
-    photo = update.message.photo[-1]
-    file_id = photo.file_id
+    file_id = update.message.photo[-1].file_id
     name = context.user_data.get("santa_name")
     existing_number = context.user_data.get("santa_existing_number")
     number = existing_number or db.assign_secret_santa_number(user_id)
